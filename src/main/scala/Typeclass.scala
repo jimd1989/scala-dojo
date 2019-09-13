@@ -34,16 +34,23 @@ final case class CoPair[A](head: A, tail: CoLinkedList[A])
     extends CoLinkedList[A]
 final case object CoEnd extends CoLinkedList[Nothing]
 
-// Typeclass signatures go here
 trait JsonWriter[A] {
   def write(in: A): String
 }
 
-// Typeclass instances go here: the type-specific implementations of a given procedure outlined in the trait
-// This will have to be explicitly imported with `import JsonWriterInstances._`
-// This is an alternative to
-object JsonWriterInstances {
-  implicit val personWriter =
+object JsonWriter {
+  def write[A](a: A)(implicit w: JsonWriter[A]): String = w.write(a)
+  implicit class Ops[A](a: A) {
+    def writeJson(implicit jsonWriter: JsonWriter[A]): String = {
+      jsonWriter.write(a)
+    }
+  }
+}
+
+final case class Person(name: String, email: String)
+
+object Person {
+  implicit val jsonWriterForPerson: JsonWriter[Person] =
     new JsonWriter[Person] {
       def write(p: Person): String = {
         val name = p.name
@@ -51,20 +58,6 @@ object JsonWriterInstances {
         s"""{"name": "$name", "email": "$email"}"""
       }
     }
-}
-
-// Typeclass interface goes here: provide a generic function that will match against specific instances in scope
-object JsonWriter {
-  def write[A](a: A)(implicit w: JsonWriter[A]): String = w.write(a)
-  implicit class Ops[A](a: A) {
-    def writeJson(implicit jsonWriter: JsonWriter[A]): String = ???
-  }
-}
-
-final case class Person(name: String, email: String)
-
-object Person {
-  implicit val jsonWriterForPerson: JsonWriter[Person] = ???
   // hint: https://www.scala-lang.org/api/current/scala/math/Ordering$.html#fromLessThan[T](cmp:(T,T)=%3EBoolean):scala.math.Ordering[T]
   //implicit val sortablePerson: Ordering[Person] = ???
 }
