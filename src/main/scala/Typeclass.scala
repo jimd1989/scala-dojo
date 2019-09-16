@@ -59,19 +59,31 @@ object Person {
       }
     }
   // hint: https://www.scala-lang.org/api/current/scala/math/Ordering$.html#fromLessThan[T](cmp:(T,T)=%3EBoolean):scala.math.Ordering[T]
-  //implicit val sortablePerson: Ordering[Person] = ???
+  implicit val sortablePerson: Ordering[Person] =
+    new Ordering[Person] {
+      def compare(x: Person, y: Person): Int = x.name.compare(y.name)
+    }
 }
 
 final case class Cat(name: String, food: String)
 
 object Cat {
-  implicit val jsonWriterForCat: JsonWriter[Cat] = ???
+  implicit val jsonWriterForCat: JsonWriter[Cat] =
+    new JsonWriter[Cat] {
+      def write(in: Cat): String =
+        s"""{"name": "${in.name}", "food": "${in.food}"}"""
+    }
 }
 
 final case class CatPerson(person: Person, cat: Cat)
 
 object CatPerson {
-  implicit val jsonWriterForCatPerson: JsonWriter[CatPerson] = ???
+  implicit val jsonWriterForCatPerson: JsonWriter[CatPerson] =
+    new JsonWriter[CatPerson] {
+      def write(cp: CatPerson): String =
+        s"""{"person":${JsonWriter.write(cp.person)},"cat":${JsonWriter.write(
+          cp.cat)}}"""
+    }
   implicit class CatPersonOps(cp: CatPerson) {
     def writeJson: String = ???
   }
