@@ -27,7 +27,10 @@ final case class Leaf[A](value: A) extends Tree[A]
 
 object Tree {
   implicit val treeFunctor: Functor[Tree] = new Functor[Tree] {
-    def map[A, B](value: Tree[A])(f: A => B): Tree[B] = ???
+    def map[A, B](value: Tree[A])(f: A => B): Tree[B] = value match {
+      case Branch(left, right) => branch(map(left)(f), map(right)(f))
+      case Leaf(value)         => leaf(f(value))
+    }
   }
 
   def branch[A](left: Tree[A], right: Tree[A]): Tree[A] = Branch(left, right)
