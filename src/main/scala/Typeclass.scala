@@ -85,6 +85,6 @@ object CatPerson {
           cp.cat)}}"""
     }
   implicit class CatPersonOps(cp: CatPerson) {
-    def writeJson: String = ???
+    def writeJson(implicit w: JsonWriter[CatPerson]): String = w.write(cp)
   }
 }
