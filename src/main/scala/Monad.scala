@@ -64,11 +64,8 @@ object Printable {
       if (value) "yes" else "no"
   }
 
-  implicit def boxPrintable[A](implicit p: Printable[A]): Printable[Box[A]] =
-    new Printable[Box[A]] {
-      def format(b: Box[A]): String =
-        printableContravariant.contramap[A, Box[A]](p)(b => b.value).format(b)
-    }
+  implicit def boxPrintable[A](implicit p: Printable[A]): Printable[Box[A]] = Contravariant[Printable].contramap(p)(b => b.value)
+        // printableContravariant.contramap[A, Box[A]](p)(b => b.value).format(b)
 }
 
 final case class Box[A](value: A)
