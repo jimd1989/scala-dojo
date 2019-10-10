@@ -41,6 +41,7 @@ trait Printable[A] { self =>
   def format(value: A): String
 }
 
+// (b -> a) -> F a -> F b
 object Printable {
   implicit val printableContravariant = new Contravariant[Printable] {
     def contramap[A, B](fa: Printable[A])(func: B => A): Printable[B] = ???
@@ -61,13 +62,16 @@ object Printable {
   }
 
   implicit def boxPrintable[A](implicit p: Printable[A]): Printable[Box[A]] =
-    ???
+    new Printable[Box[A]] {
+      def format(b: Box[A]): String = ???
+    }
 }
 
 final case class Box[A](value: A)
 
 object IdMonad {
-  def sumSquare[F[_]: Monad](a: F[Int], b: F[Int]): F[Int] = ???
+  def sumSquare[F[_]: Monad](a: F[Int], b: F[Int]): F[Int] =
+    a.flatMap(x => b.map(y => x * x + y * y))
 }
 
 object Writers {
@@ -78,8 +82,42 @@ object Writers {
     try body
     finally Thread.sleep(1)
 
-  def factorial(n: Int): Logged[Int] = ???
+  def factorial(n: Int): Logged[Int] = {
+    for {
+      x <- if (n == 0) {
+        1.pure[Logged]
+      } else {
+        slowly(factorial(n - 1).map(_ * n))
+      }
+      _ <- Vector(s"fact $n $x").tell
+    } yield x
+  }
 }
+// Monad allows sequencing operations that depend on some input. Wrap up one-arg functions.
+// If there are a number of operations that depend on an external configuration, they can be chained with a Reader
+// to produce one large operation that accepts the config as a parameter and runs the program in the specified order.
+
+// Reader[A, B] is created from a function A => B using Reader.apply constructor.
+// case class Cat(name: String, food: String)
+// val catName: Reader[Cat, String] = Reader(cat => cat.name)
+// catName.run(Cat("Garfield", "Lasagna"))
+// --> cats.Id[String] = Garfield
+
+// Readers are useful through the map and flatMap functions, which allow composition.
+// Create a set of Readers that operate over the same config and chain them together.
+// map extends a computation by passing its result through a function:
+
+// val greetCat: Reader[Cat, String] = catName.map(name => s"Hello ${name}")
+// greetCat.run(Cat("Mittens", "food"))
+// --> cats.Id[String] = "Hello Mittens"
+
+// flatMap combines Readers that depend on the same input type.
+// val feedCat: Reader[Cat, String] = Reader(cat => s"Eat the ${cat.food}")
+
+// for {
+//   greet <- greetCat
+//   feed  <- feedCat
+//  } yield s"$greet. feed."
 
 object Readers {
   case class Db(
@@ -89,11 +127,20 @@ object Readers {
 
   type DbReader[A] = Reader[Db, A]
 
-  def findUsername(userId: Int): DbReader[Option[String]] = ???
+  def findUsername(userId: Int): DbReader[Option[String]] =
+    Reader(db => db.usernames.get(userId))
 
-  def checkPassword(username: String, password: String): DbReader[Boolean] = ???
+  def checkPassword(username: String, password: String): DbReader[Boolean] =
+    Reader(db => db.passwords.get(username).contains(password))
 
-  def checkLogin(userId: Int, password: String): DbReader[Boolean] = ???
+  def checkLogin(userId: Int, password: String): DbReader[Boolean] =
+    Reader(
+      db =>
+        findUsername(userId)
+          .run(db)
+          .map(x => checkPassword(x, password))
+          .getOrElse(false.pure[DbReader])
+          .run(db))
 }
 
 object States {
