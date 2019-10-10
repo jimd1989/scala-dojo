@@ -44,7 +44,10 @@ trait Printable[A] { self =>
 // (b -> a) -> F a -> F b
 object Printable {
   implicit val printableContravariant = new Contravariant[Printable] {
-    def contramap[A, B](fa: Printable[A])(func: B => A): Printable[B] = ???
+    def contramap[A, B](fa: Printable[A])(func: B => A): Printable[B] =
+      new Printable[B] {
+        def format(value: B): String = fa.format(func(value))
+      }
   }
 
   def format[A: Printable](value: A): String = {
@@ -63,7 +66,8 @@ object Printable {
 
   implicit def boxPrintable[A](implicit p: Printable[A]): Printable[Box[A]] =
     new Printable[Box[A]] {
-      def format(b: Box[A]): String = ???
+      def format(b: Box[A]): String =
+        printableContravariant.contramap[A, Box[A]](p)(b => b.value).format(b)
     }
 }
 
@@ -142,6 +146,12 @@ object Readers {
           .getOrElse(false.pure[DbReader])
           .run(db))
 }
+
+// Pass additional state in computation. Atomic state operations threaded together with maps and flatMaps.
+// State[S, A] represents functions of type S => (S, A) where S is state type and A is the result.
+// It transforms and input state to an output state and computes a result.
+// The monad is run by providing an initial state. It has run, runS, and runA, which each return different combinations.
+// Each returns an instance of Eval to maintain stack safety.
 
 object States {
   import cats.data.State
