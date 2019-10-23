@@ -64,8 +64,9 @@ object Printable {
       if (value) "yes" else "no"
   }
 
-  implicit def boxPrintable[A](implicit p: Printable[A]): Printable[Box[A]] = Contravariant[Printable].contramap(p)(b => b.value)
-        // printableContravariant.contramap[A, Box[A]](p)(b => b.value).format(b)
+  implicit def boxPrintable[A](implicit p: Printable[A]): Printable[Box[A]] =
+    Contravariant[Printable].contramap[A, Box[A]](p)(b => b.value)
+  // printableContravariant.contramap[A, Box[A]](p)(b => b.value).format(b)
 }
 
 final case class Box[A](value: A)
@@ -149,19 +150,35 @@ object Readers {
 // It transforms and input state to an output state and computes a result.
 // The monad is run by providing an initial state. It has run, runS, and runA, which each return different combinations.
 // Each returns an instance of Eval to maintain stack safety.
+// Call value method to return actual result.
+// get extracts state of result.
+// set updates the state and returns unit as a result.
+// pure ignores the state and returns a supplied result.
+// inspect extracts the state via a transformation function.
+// modify updates the state via an update function.
+// see pg. 121 to 122 for examples.
+// a <- get[Int]
+// _ <- set[Int](a + 1)
 
 object States {
   import cats.data.State
   type CalcState[A] = State[List[Int], A]
+  def dyadicF[A](xs: List[A])(f: (A, A) => A): (List[A], A) = {
+    val y = f(xs.head, xs.tail.head)
+    (y :: xs.tail.tail, y)
+  }
   def evalOne(sym: String): CalcState[Int] = State[List[Int], Int] { state =>
     sym match {
-      case "+" => ???
-      case "*" => ???
-      case _   => ???
+      case "+" => dyadicF(state)(_ + _)
+      case "*" => dyadicF(state)(_ * _)
+      case _   => (sym.toInt :: state, sym.toInt)
     }
   }
 
-  def evalAll(exprs: List[String]): CalcState[Int] = ???
+  def evalAll(exprs: List[String]): CalcState[Int] =
+    exprs.foldLeft(0.pure[CalcState]) { (acc: CalcState[Int], x: String) =>
+      acc.flatMap(_ => evalOne(x))
+    }
 }
 
 object Transformer {
